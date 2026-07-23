@@ -1,0 +1,14 @@
+{
+  "name": "cuttrack",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:generate": "npm run prisma:generate -w @cuttrack/backend",
+    "db:migrate": "npm run prisma:migrate -w @cuttrack/backend",
+    "db:seed": "npm run prisma:seed -w @cuttrack/backend"
+  },
+  "engines": { "node": ">=20" }
+}

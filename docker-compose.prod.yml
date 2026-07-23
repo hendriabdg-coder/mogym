@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cuttrack}
+      POSTGRES_USER: ${POSTGRES_USER:-cuttrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi}
+    volumes: [postgres_prod:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U ${POSTGRES_USER:-cuttrack} -d ${POSTGRES_DB:-cuttrack}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes: [redis_prod:/data]
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    env_file: [.env.backend]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cuttrack}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cuttrack}
+      REDIS_URL: redis://redis:6379
+      UPLOAD_PATH: ./uploads
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    volumes: [uploads_prod:/app/apps/backend/uploads]
+    healthcheck:
+      test: ["CMD","wget","-qO-","http://localhost:3030/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: /api
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+        NEXT_PUBLIC_APP_URL: ${APP_URL}
+    restart: unless-stopped
+    depends_on:
+      backend: { condition: service_healthy }
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports: ["80:80"]
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on: [frontend,backend]
+
+volumes:
+  postgres_prod:
+  redis_prod:
+  uploads_prod:

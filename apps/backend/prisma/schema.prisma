@@ -1,0 +1,414 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+enum ProgramStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+enum TargetType {
+  WEIGHT
+  BODY_FAT
+}
+
+enum WeeklyPattern {
+  P3_4
+  P4_3
+  P5_2
+  P6_1
+}
+
+enum SplitType {
+  FULL_BODY_A
+  FULL_BODY_B
+  FULL_BODY_C
+  UPPER_A
+  UPPER_B
+  LOWER_A
+  LOWER_B
+  PUSH_A
+  PUSH_B
+  PULL_A
+  PULL_B
+  LEGS_A
+  LEGS_B
+}
+
+enum MuscleGroup {
+  CHEST
+  BACK
+  SHOULDERS
+  BICEPS
+  TRICEPS
+  LEGS
+  GLUTES
+  CORE
+  FULL_BODY
+}
+
+enum Equipment {
+  BARBELL
+  DUMBBELL
+  CABLE
+  MACHINE
+  BODYWEIGHT
+  BAND
+}
+
+enum ExercisePhase {
+  WARMUP
+  MAIN
+  ACCESSORY
+  COOLDOWN
+}
+
+enum SessionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  MISSED
+  SKIPPED
+  RESCHEDULED
+}
+
+enum EvaluationStatus {
+  ON_TRACK
+  AHEAD
+  BEHIND
+  STAGNANT
+  LOW_COMPLIANCE
+  INSUFFICIENT_DATA
+  PERFORMANCE_DROP
+  FATIGUE
+  CONSIDER_RECOVERY
+  CONSIDER_CALORIC_ADJUSTMENT
+}
+
+enum EvaluationAction {
+  APPLY
+  IGNORE
+  REMIND_LATER
+}
+
+enum PhotoAngle {
+  FRONT
+  SIDE
+  BACK
+}
+
+enum NotificationType {
+  WORKOUT_REMINDER
+  POST_WORKOUT
+  WEIGH_REMINDER
+  FOOD_CHECKLIST
+  EVALUATION
+  MISSED_SESSION
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  name                String
+  passwordHash        String?
+  googleId            String?              @unique
+  appleId             String?              @unique
+  emailVerified       Boolean              @default(false)
+  emailVerifyToken    String?              @unique
+  resetPasswordToken  String?              @unique
+  resetPasswordExpiry DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  profile             UserProfile?
+  programs            CuttingProgram[]
+  sessions            WorkoutSession[]
+  weights             WeeklyWeight[]
+  evaluations         WeeklyEvaluation[]
+  foodChecklists      FoodChecklist[]
+  progressPhotos      ProgressPhoto[]
+  notificationSetting NotificationSetting?
+  notificationLogs    NotificationLog[]
+  pushSubscriptions   PushSubscription[]
+  refreshTokens       RefreshToken[]
+}
+
+model UserProfile {
+  id                 String         @id @default(cuid())
+  userId             String         @unique
+  dateOfBirth        DateTime?
+  gender             Gender?
+  heightCm           Float?
+  onboardingWeightKg Float?
+  activityLevel      ActivityLevel?
+  timezone           String         @default("Asia/Makassar")
+  photoUrl           String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CuttingProgram {
+  id                         String             @id @default(cuid())
+  userId                     String
+  status                     ProgramStatus      @default(ACTIVE)
+  targetType                 TargetType
+  startWeight                Float
+  targetWeight               Float?
+  currentWeight              Float
+  startBodyFat               Float?
+  targetBodyFat              Float?
+  startDate                  DateTime
+  targetDate                 DateTime
+  weeklyPattern              WeeklyPattern
+  sessionDurationMinutes     Int
+  unavailableDays            Int[]
+  caloricTarget              Int
+  proteinGrams               Int
+  carbsGrams                 Int
+  fatGrams                   Int
+  progressiveOverloadEnabled Boolean            @default(true)
+  weeklyWeightTargetEnabled  Boolean            @default(true)
+  weeklyWeightTargetKg       Float?
+  foodChecklistEnabled       Boolean            @default(false)
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
+  user                       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  splits                     WorkoutSplit[]
+  sessions                   WorkoutSession[]
+  weights                    WeeklyWeight[]
+  evaluations                WeeklyEvaluation[]
+  foodChecklists             FoodChecklist[]
+  progressPhotos             ProgressPhoto[]
+
+  @@index([userId, status])
+}
+
+model WorkoutSplit {
+  id                       String                 @id @default(cuid())
+  programId                String
+  dayOfWeek                Int
+  weekNumber               Int
+  splitType                SplitType
+  sessionOrder             Int
+  estimatedDurationMinutes Int
+  program                  CuttingProgram         @relation(fields: [programId], references: [id], onDelete: Cascade)
+  exercises                WorkoutSplitExercise[]
+  sessions                 WorkoutSession[]
+
+  @@index([programId, weekNumber])
+}
+
+model Exercise {
+  id                String                 @id @default(cuid())
+  name              String                 @unique
+  nameId            String
+  muscleGroup       MuscleGroup
+  equipment         Equipment
+  isCompound        Boolean
+  instructionShort  String
+  contraindications String[]
+  createdAt         DateTime               @default(now())
+  splitExercises    WorkoutSplitExercise[]
+  logs              SessionExerciseLog[]
+
+  @@index([muscleGroup, equipment])
+}
+
+model WorkoutSplitExercise {
+  id            String        @id @default(cuid())
+  splitId       String
+  exerciseId    String
+  orderIndex    Int
+  sets          Int
+  targetRepsMin Int
+  targetRepsMax Int
+  restSeconds   Int
+  phase         ExercisePhase
+  notes         String?
+  split         WorkoutSplit  @relation(fields: [splitId], references: [id], onDelete: Cascade)
+  exercise      Exercise      @relation(fields: [exerciseId], references: [id])
+
+  @@unique([splitId, orderIndex])
+}
+
+model WorkoutSession {
+  id              String               @id @default(cuid())
+  programId       String
+  splitId         String
+  userId          String
+  scheduledDate   DateTime
+  actualDate      DateTime?
+  status          SessionStatus        @default(SCHEDULED)
+  durationMinutes Int?
+  averageRpe      Float?
+  notes           String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  program         CuttingProgram       @relation(fields: [programId], references: [id], onDelete: Cascade)
+  split           WorkoutSplit         @relation(fields: [splitId], references: [id])
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs            SessionExerciseLog[]
+
+  @@index([userId, scheduledDate])
+  @@index([programId, scheduledDate])
+}
+
+model SessionExerciseLog {
+  id         String         @id @default(cuid())
+  sessionId  String
+  exerciseId String
+  orderIndex Int
+  sets       Json
+  rpe        Float?
+  notes      String?
+  createdAt  DateTime       @default(now())
+  session    WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise   Exercise       @relation(fields: [exerciseId], references: [id])
+
+  @@index([sessionId])
+}
+
+model WeeklyWeight {
+  id             String         @id @default(cuid())
+  programId      String
+  userId         String
+  weekNumber     Int
+  weighDate      DateTime
+  weightKg       Float
+  bodyFatPercent Float?
+  notes          String?
+  photoUrl       String?
+  createdAt      DateTime       @default(now())
+  program        CuttingProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([programId, weekNumber])
+  @@index([userId, weighDate])
+}
+
+model WeeklyEvaluation {
+  id                String            @id @default(cuid())
+  programId         String
+  userId            String
+  weekNumber        Int
+  status            EvaluationStatus
+  completedSessions Int
+  plannedSessions   Int
+  missedSessions    Int
+  compliancePercent Float
+  averageRpe        Float?
+  weightChange      Float?
+  recommendations   Json
+  userAction        EvaluationAction?
+  createdAt         DateTime          @default(now())
+  program           CuttingProgram    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, weekNumber])
+  @@index([userId, weekNumber])
+}
+
+model FoodChecklist {
+  id        String         @id @default(cuid())
+  userId    String
+  programId String
+  date      DateTime
+  items     Json
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program   CuttingProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model ProgressPhoto {
+  id         String         @id @default(cuid())
+  userId     String
+  programId  String
+  weekNumber Int
+  angle      PhotoAngle
+  photoUrl   String
+  takenAt    DateTime
+  createdAt  DateTime       @default(now())
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program    CuttingProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId, weekNumber])
+}
+
+model NotificationSetting {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  workoutReminder       Boolean  @default(true)
+  workoutReminderHour   Int      @default(17)
+  workoutReminderMinute Int      @default(0)
+  postWorkoutReminder   Boolean  @default(true)
+  weighReminder         Boolean  @default(true)
+  weighReminderHour     Int      @default(7)
+  weighReminderMinute   Int      @default(0)
+  foodChecklistReminder Boolean  @default(false)
+  evaluationReminder    Boolean  @default(true)
+  missedSessionReminder Boolean  @default(true)
+  quietDays             Int[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationLog {
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  scheduledAt DateTime
+  sentAt      DateTime?
+  readAt      DateTime?
+  payload     Json
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, scheduledAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}

@@ -1,0 +1,1 @@
+import {AuthPage} from '@/components/auth-page';export default function Page(){return <AuthPage mode="forgot" title="Lupa kata sandi" description="Kami akan mengirim instruksi jika emailmu terdaftar."/>}
