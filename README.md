@@ -151,7 +151,12 @@ packages/
 nginx/         reverse proxy
 docker-compose.yml
 docker-compose.prod.yml
+docker-compose.vps.yml
 ```
+
+`docker-compose.vps.yml` dipakai pada VPS bersama yang port 80/443-nya sudah
+ditangani reverse proxy eksternal. Stack ini bergabung ke network Docker
+`coffeeshophub_internal` dan tidak mempublikasikan PostgreSQL atau Redis.
 
 ## Catatan provider eksternal
 
