@@ -18,6 +18,6 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   app.useGlobalInterceptors(new ApiResponseInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
-  await app.listen(3030);
+  await app.listen(Number(process.env.PORT) || 3030, '0.0.0.0');
 }
 void bootstrap();
