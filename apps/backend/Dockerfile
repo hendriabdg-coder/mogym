@@ -22,7 +22,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/backend/package.json ./apps/backend/package.json
 COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
 COPY --from=builder /app/apps/backend/prisma ./apps/backend/prisma
-RUN mkdir -p /app/apps/backend/uploads && chown -R node:node /app
+RUN mkdir -p /app/apps/backend/uploads && chown -R node:node /app/apps/backend/uploads
 USER node
 WORKDIR /app/apps/backend
 EXPOSE 3030
