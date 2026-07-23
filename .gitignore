@@ -13,3 +13,4 @@ coverage
 uploads
 *.log
 *.code-workspace
+.env.production
