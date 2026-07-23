@@ -9,7 +9,7 @@ if [[ ! -f .env.production ]]; then
   jwt_refresh_secret="$(openssl rand -hex 48)"
   read -r vapid_public vapid_private < <(
     sudo docker run --rm node:20-alpine node -e \
-      'const {generateKeyPairSync}=require("crypto");const {publicKey,privateKey}=generateKeyPairSync("ec",{namedCurve:"prime256v1"});const pub=publicKey.export({format:"jwk"});const priv=privateKey.export({format:"jwk"});const b=Buffer.concat([Buffer.from([4]),Buffer.from(pub.x,"base64url"),Buffer.from(pub.y,"base64url")]).toString("base64url");process.stdout.write(`${b} ${priv.d}`)'
+      'const {generateKeyPairSync}=require("crypto");const {publicKey,privateKey}=generateKeyPairSync("ec",{namedCurve:"prime256v1"});const pub=publicKey.export({format:"jwk"});const priv=privateKey.export({format:"jwk"});const b=Buffer.concat([Buffer.from([4]),Buffer.from(pub.x,"base64url"),Buffer.from(pub.y,"base64url")]).toString("base64url");console.log(`${b} ${priv.d}`)'
   )
 
   umask 077
